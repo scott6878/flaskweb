@@ -1,0 +1,193 @@
+{% extends "base.html" %}
+
+
+{% block main %}
+
+<!--Section: Magazine v.1-->
+<section id="myalbum" class="wow fadeIn">
+
+    <!--Section heading-->
+    <h2 class="h1 text-center my-5 font-weight-bold">My Favorite Songs</h2>
+
+    <div id="result_comments"></div>
+
+    <!--Grid row-->
+    <div class="row text-left">
+
+        <!--Grid column-->
+        <div class="col-12">
+
+            {% for s in songs %}
+            <hr>
+            <!--Small news-->
+            <div class="row">
+                <div class="col-md-2">
+                    <h1 class="text-primary"></h1>
+                </div>
+                <div class="col-md-3">
+
+                    <!--Image-->
+                    <div class="view overlay rounded z-depth-1x text-center">
+                        <a>
+                            <form id="frm_{{s.id}}" method="POST" enctype="multipart/form-data">
+                                <input type="file" id="file_{{s.id}}" style="opacity:0; height:0;width:0;" onchange="uploadFile({{s.id}})">
+                            </form>
+                            <img id="img_{{s.id}}" src="{% if s.upfile %}{{s.upfile}}{% else %}/static/img/album_img/1.jpg{% endif %}" class="img-fluid w-100" alt="Minor sample post image">
+                            <div class="mask rgba-white-slight" onclick="upfile({{s.id}})"></div>
+                        </a>
+                    </div>
+                </div>
+
+                <!--Excerpt-->
+                <div class="col-md-7">
+                    <p class="dark-grey-text">
+                        <strong>{{s.song.title}}</strong> - {{s.song.songartists | artist_names}}
+                    </p>
+                    <a href="/getfile?file={{s.upfile}}">Download</a>
+                    <hr>
+                    <script id="comments_template_{{s.id}}" type="text/x-handlebars-template">
+                        {% raw %}
+                            {{#each comments}}
+                                <div id="cmt_{{id}}" class="card">
+                                    <div class="card-body p-1">
+                                        {{content}}
+                                        {{#if isMine}}
+                                            <a onclick="deleteCmt({{myalbumid}}, {{id}})" href="#" class="text-danger">x</a>
+                                        {{/if}}
+                                        <small class="text-muted float-right">{{dateformat writedate "M/D HH:mm"}} by <strong>{{writername}}</strong></small>
+                                    </div>
+                                </div>
+                            {{/each}}
+                        {% endraw %}
+                    </script>
+                    <div id="comments_result_{{s.id}}"></div>
+                    <button onclick="openCmtModal({{s.id}})" class="btn btn-sm btn-success float-right">+</button>
+                    <button id="btn_open_{{s.id}}" onclick="openComment({{s.id}})" class="btn btn-sm btn-primary">Open Comment</button>
+                </div>
+
+            </div>
+
+            {% else %}
+                <div class="text-center text-info">담겨진 곡이 없습니다.</div>
+            {% endfor %}
+            <!--/Small news-->
+
+        </div>
+        <!--Grid column-->
+
+    </div>
+    <!--Grid row-->
+
+</section>
+<!--/Section: Magazine v.1-->
+
+<script>
+    function upfile(id) {
+        console.log("upfile id=", id)
+        $('#file_' + id).click();
+    }
+
+    // onchange!!
+    function uploadFile(id) {
+        console.log("uploadFile=", id)
+        var form = $('#frm_' + id)[0],
+            formData = new FormData(form),
+            file = $("#file_" + id)[0].files[0];
+
+        formData.append("file", file);
+        formData.append("myalbumid", id);
+        $.ajax({
+            url: '/upload',
+            processData: false,
+            contentType: false,
+            data: formData,
+            type: 'POST',
+            success: function (res) {
+                console.log("res>>", res);
+                if (res && res.path)
+                    $('#img_' + id).attr('src', res.path)
+            }
+        });
+    }
+
+    var currCmt = 0;
+    function openComment(myalid) {
+        console.log(">>>>>", myalid)
+        send_ajax('/mycoms/' + myalid, 'GET', '', '', function (res) {
+            console.log("res>>", res)
+            if (!res || !res.length) return;
+
+            hbs('comments_template_' + myalid, {comments: res}, 'comments_result_' + myalid);
+        });
+    }
+
+    function deleteCmt(myalid, cmtid) {
+        if (!confirm("Are u sure??")) return;
+
+        send_ajax('/mycoms/' + myalid, 'DELETE', {mycomid: cmtid}, 'json', function (res) {
+            console.log("res>>", res)
+            if (!res || res.result !== 'OK') return;
+
+            $('#cmt_' + cmtid).remove();
+        });
+    }
+
+    function saveCmt() {
+        var myalid = currCmt;
+        var $content = $('#content'),
+            content = $content.val();
+
+        if (!content) {
+            alert("내용을 입력하세요!!!");
+            $content.focus();
+            return;
+        }
+
+        // console.log("curr>>", myalid, currCmt)
+        send_ajax('/mycoms/' + myalid, 'POST', {myalbumid: myalid, content: content}, 'json', function (res) {
+            console.log("res>>", res)
+            if (!res || res.result !== 'OK') return;
+
+            $content.val('');
+            $('#mdl_cmt').modal('hide');
+            openComment(myalid);
+        });
+    }
+
+    function openCmtModal(myalid) {
+        currCmt = myalid;
+        $('#mdl_cmt').modal('show');
+    }
+
+
+</script>
+
+<div class="modal fade" id="mdl_cmt" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel"
+    aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title" id="exampleModalLabel"><strong><i class="fas fa-pencil-alt"></i> Comment</strong></h3>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <!-- Default form login -->
+                <div class="text-center border border-light p-1">
+
+                    <div class="d-flex justify-content-around">
+                        <textarea id="content" rows="5" class="form-control w-100p" placeholder="comment..."></textarea>
+                    </div>
+
+                    <!-- Sign in button -->
+                    <button onclick="saveCmt()" class="btn btn-info btn-block my-1"><i class="fas fa-save"></i> Save</button>
+                </div>
+                <!-- Default form login -->
+            </div>
+            <!-- <div class="modal-footer">
+        </div> -->
+        </div>
+    </div>
+</div>
+{% endblock %}

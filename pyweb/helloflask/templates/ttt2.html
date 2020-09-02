@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+
+
+{% block main %}
+
+<!--Section: Magazine v.1-->
+<section id="myalbum" class="wow fadeIn">
+
+    <!--Section heading-->
+    <h2 class="h1 text-center my-5 font-weight-bold">My Favorite Songs</h2>
+
+    <div id="result_comments"></div>
+
+    <!--Grid row-->
+    <div class="row text-left">
+
+        <!--Grid column-->
+        <div class="col-12">
+
+            {% for s in songs %}
+            <hr>
+            <!--Small news-->
+            <div class="row">
+                <div class="col-md-2">
+                    <h1 class="text-primary"></h1>
+                </div>
+                <div class="col-md-3">
+
+                    <!--Image-->
+                    <div class="view overlay rounded z-depth-1x text-center">
+                        <a>
+                            <img src="/static/img/album_img/1.jpg" class="img-fluid w-100"
+                                alt="Minor sample post image">
+                            <div class="mask rgba-white-slight"></div>
+                        </a>
+                    </div>
+                </div>
+
+                <!--Excerpt-->
+                <div class="col-md-7">
+                    <p class="dark-grey-text">
+                        <strong>{{s.song.title}}</strong> - - {{s.song.songartists | artist_names}}
+                    </p>
+                    <hr>
+                    <script id="comments_template_{{s.id}}" type="text/x-handlebars-template">
+                    {% raw %}
+                        {{#each comments}}
+                        <div class="card" id="cmt_{{id}}">
+                            <div class="card-body p-2">
+                                {{content}} <a onclick="deleteCmt({{id}})" class="text-danger" href="#">x</a>
+                                <small class="text-muted float-right">{{dateformat writedate 'M/D hh:mm'}} by {{writername}}</small>
+                            </div>
+                        </div>
+                        {{/each}}
+                    {% endraw %}
+                        
+                </script>
+                
+                <button onclick="openWriteCmt({{s.id}})" class="btn btn-sm btn-success float-right">+</button>
+                    <div id="result_comments_{{s.id}}"></div>
+                    <p><button id="btn_open_{{s.id}}" onclick="openComments({{s.id}})" class="btn btn-sm btn-primary">Open</button></p>
+                </div>
+
+            </div>
+
+            {% else %}
+                <div class="text-center text-info">담겨진 곡이 없습니다.</div>
+            {% endfor %}
+            <!--/Small news-->
+
+        </div>
+        <!--Grid column-->
+
+    </div>
+    <!--Grid row-->
+
+</section>
+<!--/Section: Magazine v.1-->
+
+<script>
+    var currMyal = 0;
+    function openComments(myal) {
+        var url = "/ttt2/" + myal;
+        var $btn = $('#btn_open_' + myal);
+        send_ajax(url, 'GET', '', '', function (res) {
+            console.log("res>>", res)
+            $btn.hide();
+            hbs('comments_template_' + myal, {comments: res}, 'result_comments_' + myal);
+        }); 
+    }
+
+    function openWriteCmt(myal) {
+        currMyal = myal;
+        $('#writeTTT').modal();
+    }
+
+    function saveCmt() {
+        var content = $('#content').val();
+        console.log(">>>>>", content, currMyal)
+        send_ajax('/ttt2/' + currMyal, 'POST', {myalbumid: currMyal, content: content}, 'json', function (res) {
+            console.log("res>>", res)
+            $('#writeTTT').modal('hide');
+            openComments(currMyal);
+        }); 
+    }
+
+    function deleteCmt(mycomid) {
+        send_ajax('/ttt2/' + mycomid, 'DELETE', '', 'json', function (res) {
+            console.log("res>>", res)
+            $('#cmt_' + mycomid).remove();
+        }); 
+    }
+
+    function hbs(sourceId, data, resultId) {
+        console.log("#" + sourceId, data, resultId)
+        var source = document.getElementById(sourceId).innerHTML;
+        var template = Handlebars.compile(source);
+        var html = template(data);
+        document.getElementById(resultId).innerHTML = html;
+    }
+</script>
+
+<div class="modal fade" id="writeTTT" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel"
+    aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title" id="exampleModalLabel"><strong><i class="fas fa-pencil-alt"></i> 댓글쓰기</strong></h3>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <!-- Default form login -->
+                <div class="text-center border border-light p-1">
+                    <div class="d-flex justify-content-around">
+                        <textarea name="content" id="content" rows="5" class="w-100p form-control"></textarea>
+                    </div>
+
+                    <!-- Sign in button -->
+                    <button onclick="saveCmt()" class="btn btn-info btn-block my-1"><i class="fas fa-save"></i> Save</button>
+                </div>
+                <!-- Default form login -->
+            </div>
+            <!-- <div class="modal-footer">
+        </div> -->
+        </div>
+    </div>
+</div>
+
+{% endblock %}
